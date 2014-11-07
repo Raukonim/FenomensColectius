@@ -5,7 +5,7 @@ c     *                                                                *
 c     *        GENERADOR RCARRY                                        *
 c     *                                                                *
 c     *                                                                *
-c     *        N     - nombre d'estats  (<20)                         *
+c     *        N     - nombre d'estats  (<20)                          *
 c     *        P0(1:N)  - probabilitat inicial                         *
 c     *        W(1:N, 1:N)  - matriu de probabilitats de transicio     *
 c     *        NLLAV - nombre de llavors                               *

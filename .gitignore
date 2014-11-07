@@ -1,3 +1,9 @@
 # Ignored files #
 
 *.pdf
+*.jpeg
+*.png
+*.out
+*.ps
+*.eps
+*.exe
