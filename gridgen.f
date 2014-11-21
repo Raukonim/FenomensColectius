@@ -6,53 +6,125 @@ c     *                                                                *
 c     ******************************************************************
 c
 c
-c     Spin states +-1 in a 2D grid-> 2 coordinates: i, j from 0 to 1000?
-c     matrix [[rvec][rvec]....[rvec]] if srvec(i,j).ge.0.5 sij=1 else -1
+c     Spin states +-1 in a 2D grid-> 2 coordinates: i, j from 1 to 256?
+c     matrix [[rvec][rvec]....[rvec]] if rvec(i,j).ge.0.5 sij=1 else -1
 c
 c     * variable declarations ****************************************
 c
-      implicit none
-      integer llav, i ,j, N, sij
+      Implicit None
+      Real*8 Magne, Ener                 ! Declarem les funcions
+      Real*8 magin, enerin
+      Integer*4 llav, i ,j, N, L, sij, k
+      Integer*4 Nrand, ivec, PBC(0:10+1), montec
       
       
-      integer grid(10024,10024)
-      real*4 rvec(10024)
+      Integer*2 S(1:256,1:256)
+c     * Dimensió rvec = 256*256 + 24
+      Real*4 rvec(65536+24)
+
+      L=10
+      N=L*L
+      
+      PBC(0)=L
+      PBC(L+1)=1
+
+      Do k=1,L
+        PBC(k)=k
+      EndDo
       
 c     * generator seed
 
-      llav=139177
+      llav=17258
       
 c     * series elements
-      
-      N=1000
-      
+
+      Nrand=N
 c     * random numbers generation
       
-      call rcarin(llav,rvec,N)
-      call rcarry(rvec,N)
+      Call rcarin(llav,rvec,Nrand)
+      Call rcarry(rvec,Nrand)
       
 c     * Open file
 
-      open(13,file='grid.out')
+      Open(13,File='grid.out')
+      
+      ivec=1
       
 c     * do loops for matrix inicialization     
-      do i=1,N
-            do j=1,N
-                  if (rvec(j).ge.0.5) then
-                        sij=1
-                  else
-                        sij=-1
-                  endif
-                  grid(i,j) = sij
-            enddo
-            write(13,*)( grid(i,j) ,j=1,N)
-            call rcarry(rvec,N)
-      enddo
+      Do i=1,L
+        Do j=1,L
+          If ((rvec(ivec)).ge.0.5)Then
+            S(i,j) = 1
+          Else
+            S(i,j) = -1
+          EndIf
+          ivec=ivec+1
+          Write(*,*) i,' ',j,' ', S(i,j)
+        EndDo
+        Write(13,*)( S(i,j) ,j=1,N)
+      EndDo
+c     cridem la funció Magne que calcula la magnetització de la xarxa
+      magin=Magne(S,L)
+      Write(*,*) "La magnetitzacció inicial és: ", magin
+c     cridem la funcií Ener que calcula l'energia de la xar
+      enerin=Ener(S,L, PBC)
+      Write(*,*) "L'Enrgia inicial és:  ", enerin
+      Stop
+      End
       
-      stop
-      end
       
+c      
+c     Funció Magne que calcula la magnetització per spin 
+
+      Real*8 Function Magne(S,L)
       
+      Integer*2 S(1:256,1:256)
+      Integer*4 N, suma, L, i, j
+      
+      suma=0
+      N=L*L
+      
+      Do i=1,L
+        Do j=1,L
+          suma=suma+S(i,j)
+        Enddo
+      Enddo
+      
+      Magne= Real(suma)/Real(N)
+
+c     Do de Montecarlo
+      Do i=1,montec
+c     Do N cops
+         Do j=1,N
+            ! codi metropolis
+         EndDo
+      EndDo
+
+      Return
+      End
+
+c      
+c     Funció Ener que calcula l'energia per spin
+
+      Real*8 Function Ener(S,L,PBC)
+      
+      Integer*2 S(1:256,1:256)
+      Integer*4 N, suma, L, k, PBC(0:10+1)
+      
+      suma=0
+      
+      Do i=1,L
+        Do j=1,L
+          suma=suma-S(i,j)*(S(PBC(i+1),j)+S(i,PBC(j+1)))
+        EndDo
+      EndDo
+      
+      Ener=Real(suma)/Real(L*L)
+      
+      Return
+      End
+
+
 c     ******************************************************************
 c     *                     SUBRUTINA RCARIN                           *
 c     ******************************************************************
