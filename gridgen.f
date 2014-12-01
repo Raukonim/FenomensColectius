@@ -37,8 +37,8 @@ c     * Dimensió rvec = 3*(256*256) + 24
       MCstep=10
       
 c     * generator seed
-      llav=1725
-c      llav=17258
+
+      llav=17258
       
       PBC(0)=L
       PBC(L+1)=1
@@ -82,7 +82,7 @@ c          Write(*,*) i,' ',j,' ', S(i,j)
 c     cridem la funció Magne que calcula la magnetització de la xarxa
       magin=Magne(S,L)
       Write(*,*) "La magnetitzacció inicial és: ", magin
-c     cridem la funció Ener que calcula l'energia de la xar
+c     cridem la funció Ener que calcula l'energia de la xarxa
       enerin=Ener(S,L, PBC)
       Write(*,*) "L'Enrgia inicial és:  ", enerin
 
@@ -123,8 +123,8 @@ c               calcul energia
                eners=Ener(S, L, PBC)
                magnes=Magne(S, L)
             Else
-c              solament acceptem el canvi si el factor de boltzman és
-c              menor que un nombre a l'atzar
+c              solament acceptem el canvi si l'exponencial de -deltaH/T 
+c              és major que un nombre a l'atzar
                C=rvec(ivec)
                ivec=ivec+1
                prob=Boltz(-enerdif, T)
@@ -159,7 +159,8 @@ c            Write(*,*) IMC, magnes, magnepas
          EndIf
       EndDo
 
-c     normalitzem
+c     normalitzem divindint els sumatoris per suma0 que compta
+c     la quantitat de passos ue em sumat
 
       Close(13)
       Close(14)
@@ -167,9 +168,13 @@ c     normalitzem
       Stop
       End
       
-      
-c      
-c     Funció Magne que calcula la magnetització per spin 
+c     ******************************************************************
+c     *                       Funció Magne                             *
+c     *                                                                *
+c     *               Calcula la magnetització per spin                *
+c     *                                                                *
+c     ******************************************************************
+c
 
       Real*8 Function Magne(S,L)
       
@@ -191,8 +196,13 @@ c     Funció Magne que calcula la magnetització per spin
       Return
       End
 
-c      
-c     Funció Ener que calcula l'energia per spin
+c     ******************************************************************
+c     *                        Funció Ener                             *
+c     *                                                                *
+c     *                  Calcula l'energia per spin                    *
+c     *                                                                *
+c     ******************************************************************
+c
 
       Real*8 Function Ener(S,L,PBC)
       
@@ -212,9 +222,15 @@ c     Funció Ener que calcula l'energia per spin
       Return
       End
 
+c     ******************************************************************
+c     *                        Funció DeltaEner                        *
+c     *                                                                *
+c     *                  calcula l'increment de l'energia              * 
+c     *                            i, j, s(ij)                         *
+c     *                                                                *
+c     ******************************************************************
+c
 
-c     Funció DeltaEner que calcula l'increment de l'energia
-c     i, j, s(ij)
 
       Real*8 Function DeltaEner(i, j, S,PBC)
       
@@ -234,7 +250,13 @@ c     +    ,S(PBC(i+1),j), S(PBC(i-1),j), sumveins, DeltaEner
       Return
       End
       
-c     Funció  boltz que calcula el factor de boltzmann
+c     ******************************************************************
+c     *                        Funció Boltz                            *
+c     *                                                                *
+c     *                  Calcula l'exponencial de boltzmann            *
+c     *                                                                *
+c     ******************************************************************
+c
 
       Real*8 Function Boltz(enerdif, T)
       
