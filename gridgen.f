@@ -12,18 +12,33 @@ c
 c     * variable declarations ****************************************
 c
       Implicit None
-      Real*8 Magne, Ener                 ! Declarem les funcions
-      Real*8 magin, enerin
+      Real*8 Magne, Ener, DeltaEner, Boltz               ! Declarem les funcions
+      Real*8 magin, enerin, enerdif, prob
+      Real*8 eners, magnes, enerpas, magnepas
+      Real*8 sumam, sume, sumam2, sume2, sumabsm, suma0
+      Real*4 A, B, C, T
       Integer*4 llav, i ,j, N, L, sij, k
-      Integer*4 Nrand, ivec, PBC(0:10+1), montec
+      Integer*4 IMC, MCtotal, MCini, MCstep
+      Integer*4 Nrand, ivec, ipas, PBC(0:257), montec
       
       
       Integer*2 S(1:256,1:256)
-c     * Dimensió rvec = 256*256 + 24
-      Real*4 rvec(65536+24)
+c     * Dimensió rvec = 3*(256*256) + 24
+      Real*4 rvec(196632)
 
-      L=10
+      L=256
       N=L*L
+      MCtotal=10000
+      
+      T=1
+      
+      
+      MCini=2000
+      MCstep=10
+      
+c     * generator seed
+
+      llav=17258
       
       PBC(0)=L
       PBC(L+1)=1
@@ -32,16 +47,16 @@ c     * Dimensió rvec = 256*256 + 24
         PBC(k)=k
       EndDo
       
-c     * generator seed
 
-      llav=17258
       
 c     * series elements
 
-      Nrand=N
+      Nrand=3*N
 c     * random numbers generation
       
       Call rcarin(llav,rvec,Nrand)
+
+c     generació de la matriu inicial
       Call rcarry(rvec,Nrand)
       
 c     * Open file
@@ -59,16 +74,92 @@ c     * do loops for matrix inicialization
             S(i,j) = -1
           EndIf
           ivec=ivec+1
-          Write(*,*) i,' ',j,' ', S(i,j)
+c          Write(*,*) i,' ',j,' ', S(i,j)
         EndDo
-        Write(13,*)( S(i,j) ,j=1,N)
+c        Write(13,*)( S(i,j) ,j=1,N)
       EndDo
 c     cridem la funció Magne que calcula la magnetització de la xarxa
       magin=Magne(S,L)
       Write(*,*) "La magnetitzacció inicial és: ", magin
-c     cridem la funcií Ener que calcula l'energia de la xar
+c     cridem la funció Ener que calcula l'energia de la xar
       enerin=Ener(S,L, PBC)
       Write(*,*) "L'Enrgia inicial és:  ", enerin
+
+      eners=0.0d0
+      enerpas=0.0d0
+      magnes=0.0d0
+      magnepas=0.0d0
+      sumam=0.0d0
+      sume=0.0d0
+      sumam2=0.0d0
+      sume2=0.0d0
+      sumabsm=0.0d0
+      suma0=0.0d0
+
+c     Do de Montecarlo
+      Do IMC=1,MCtotal
+         Call rcarry(rvec, Nrand)
+         ivec=0
+c        Do N cops
+         Do ipas=1,N
+            ! codi metropolis 3 nums aleatoris
+            i=INT(L*rvec(ivec))+1
+            ivec=ivec+1
+            j=INT(L*rvec(ivec))+1
+            ivec=ivec+1
+c           Imprimim ij per comprovar que els index siguin del tipus
+c           que desitgem
+c            write(*,*) i, j
+
+c           Calculem delta H
+            enerdif=DeltaEner(i, j, S, PBC)
+c           if per comprovar si l'increment energètic és negatiu
+c           o positiu
+            If (enerdif.le.0.0d0) Then
+c              acceptem el canvi
+               S(i,j)=-S(i,j)
+c               calcul energia
+               eners=Ener(S, L, PBC)
+               magnes=Magne(S, L)
+            Else
+c              solament acceptem el canvi si el factor de boltzman és
+c              menor que un nombre a l'atzar
+               C=rvec(ivec)
+               ivec=ivec+1
+               prob=Boltz(enerdif, T)
+c               Write(*,*) prob
+               If (C.le.prob) Then
+                  S(i,j)=-S(i,j)
+c                 calcul energia
+                  eners=Ener(S, L, PBC)
+                  magnes=Magne(S, L)
+               EndIf
+            EndIf
+         EndDo
+c        calcul dels promitjos(real*8) energia  imantacio sumam sume sumam2
+c        sume2 sumabsm per mc prou grans mcini=1000 i multiples de mcstep=10
+c        IF(mc.gt.mcini)AND(imc.eq.mcstep*(imc/imcstep)) 
+c        definim fora bucle montecarlo sum* on hi afegim Sum0 que
+c        compta el nombre de condicions complerrtes  de mcstep
+c        Write ene1 i ene2 ca
+         IF((IMC.gt.MCini).AND.((Mod(IMC,MCstep)).eq.0)) Then
+            enerpas = Ener(S, L, PBC)
+            magnepas = Magne(S,L)
+            Write(*,*) IMC, eners, enerpas
+            Write(*,*) IMC, magnes, magnepas
+            sumam = sumam + magnepas
+            sume = sume + enerpas
+            sumam2 = sumam2 + (magnepas**2)
+            sume2 = sume2 + (enerpas**2)
+            sumabsm = sumabsm + Abs(magnepas)
+            suma0 = suma0+1.0d0
+         EndIf
+      EndDo
+
+c     normalitzem
+
+
+
       Stop
       End
       
@@ -92,13 +183,6 @@ c     Funció Magne que calcula la magnetització per spin
       
       Magne= Real(suma)/Real(N)
 
-c     Do de Montecarlo
-      Do i=1,montec
-c     Do N cops
-         Do j=1,N
-            ! codi metropolis
-         EndDo
-      EndDo
 
       Return
       End
@@ -109,7 +193,7 @@ c     Funció Ener que calcula l'energia per spin
       Real*8 Function Ener(S,L,PBC)
       
       Integer*2 S(1:256,1:256)
-      Integer*4 N, suma, L, k, PBC(0:10+1)
+      Integer*4 N, suma, L, k, PBC(0:257)
       
       suma=0
       
@@ -124,6 +208,38 @@ c     Funció Ener que calcula l'energia per spin
       Return
       End
 
+
+c     Funció DeltaEner que calcula l'increment de l'energia
+c     i, j, s(ij)
+
+      Real*8 Function DeltaEner(i, j, S,PBC)
+      
+      Integer*2 S(1:256,1:256)
+      Integer*4 sumveins, PBC(0:257), i, j
+      
+      sumveins=0
+      
+      sumveins=(S(i,PBC(j+1))+S(i,PBC(j-1)))
+      sumveins=sumveins+(S(PBC(i+1),j)+S(PBC(i-1),j))
+      
+      DeltaEner=2*S(i,j)*sumveins
+      
+c      Write(*,*) S(i,j), S(i,PBC(j+1)), S(i,PBC(j-1))
+c     +    ,S(PBC(i+1),j), S(PBC(i-1),j), sumveins, DeltaEner
+      
+      Return
+      End
+      
+c     Funció  boltz que calcula el factor de boltzmann
+
+      Real*8 Function Boltz(enerdif, T)
+      
+      Real*8 enerdif
+      
+      Boltz=dexp((-enerdif)/T)
+      
+      Return
+      End
 
 c     ******************************************************************
 c     *                     SUBRUTINA RCARIN                           *
