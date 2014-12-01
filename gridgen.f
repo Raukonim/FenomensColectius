@@ -33,12 +33,12 @@ c     * Dimensió rvec = 3*(256*256) + 24
       T=1
       
       
-      MCini=2000
+      MCini=000
       MCstep=10
       
 c     * generator seed
-
-      llav=17258
+      llav=1725
+c      llav=17258
       
       PBC(0)=L
       PBC(L+1)=1
@@ -62,8 +62,9 @@ c     generació de la matriu inicial
 c     * Open file
 
       Open(13,File='grid.out')
+      Open(14,File='dades.out')
       
-      ivec=1
+      ivec=0
       
 c     * do loops for matrix inicialization     
       Do i=1,L
@@ -76,7 +77,7 @@ c     * do loops for matrix inicialization
           ivec=ivec+1
 c          Write(*,*) i,' ',j,' ', S(i,j)
         EndDo
-c        Write(13,*)( S(i,j) ,j=1,N)
+        Write(13,*)( S(i,j) ,j=1,L)
       EndDo
 c     cridem la funció Magne que calcula la magnetització de la xarxa
       magin=Magne(S,L)
@@ -126,7 +127,7 @@ c              solament acceptem el canvi si el factor de boltzman és
 c              menor que un nombre a l'atzar
                C=rvec(ivec)
                ivec=ivec+1
-               prob=Boltz(enerdif, T)
+               prob=Boltz(-enerdif, T)
 c               Write(*,*) prob
                If (C.le.prob) Then
                   S(i,j)=-S(i,j)
@@ -145,20 +146,23 @@ c        Write ene1 i ene2 ca
          IF((IMC.gt.MCini).AND.((Mod(IMC,MCstep)).eq.0)) Then
             enerpas = Ener(S, L, PBC)
             magnepas = Magne(S,L)
-            Write(*,*) IMC, eners, enerpas
-            Write(*,*) IMC, magnes, magnepas
+c            Write(*,*) IMC, eners, enerpas
+c            Write(*,*) IMC, magnes, magnepas
             sumam = sumam + magnepas
             sume = sume + enerpas
             sumam2 = sumam2 + (magnepas**2)
             sume2 = sume2 + (enerpas**2)
             sumabsm = sumabsm + Abs(magnepas)
             suma0 = suma0+1.0d0
+            Write(14,*) suma0, enerpas, sume, sume2,
+     +      magnepas, sumam, sumam2, sumabsm
          EndIf
       EndDo
 
 c     normalitzem
 
-
+      Close(13)
+      Close(14)
 
       Stop
       End
