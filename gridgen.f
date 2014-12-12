@@ -12,13 +12,14 @@ c
 c     * variable declarations ****************************************
 c
       Implicit None
-      Real*8 Magne, Ener, DeltaEner, Boltz               ! Declarem les funcions
-      Real*8 magin, enerin, enerdif, prob
+      Real*8 Magne, Ener, Boltz               ! Declarem les funcions
+      Real*8 magin, enerin, prob
       Real*8 eners, magnes, enerpas, magnepas
       Real*8 sumam, sume, sumam2, sume2, sumabsm, suma0
+      Real*8 start, finish, vprob(1:8)
       Real*4 A, B, C, T
-      Integer*4 llav, i ,j, N, L, sij, k
-      Integer*4 IMC, MCtotal, MCini, MCstep
+      Integer*4 illav, illav0, nllav, i ,j, N, L, sij, k
+      Integer*4 IMC, MCtotal, MCini, MCstep, DeltaEner, enerdif
       Integer*4 Nrand, ivec, ipas, PBC(0:257), montec
       
       
@@ -26,19 +27,23 @@ c
 c     * Dimensió rvec = 3*(256*256) + 24
       Real*4 rvec(196632)
 
-      L=256
-      N=L*L
+
+      Call cpu_time(start)
+ 
+c     Variables que poden ser modificades per obtenir corbes més smooth
+      L=10
       MCtotal=10000
+      T=1.0
+      nllav=30
       
-      T=1
-      
-      
-      MCini=000
+      MCini=1000
       MCstep=10
       
 c     * generator seed
 
-      llav=17258
+c      illav=17258
+      illav0=114
+
       
       PBC(0)=L
       PBC(L+1)=1
@@ -48,44 +53,23 @@ c     * generator seed
       EndDo
       
 
-      
 c     * series elements
-
+      N=L*L
       Nrand=3*N
-c     * random numbers generation
       
-      Call rcarin(llav,rvec,Nrand)
+      
+c     Probs
 
-c     generació de la matriu inicial
-      Call rcarry(rvec,Nrand)
-      
-c     * Open file
+      vprob(1)=0d0
+      vprob(2)=0d0
+      vprob(3)=0d0
+      vprob(4)=dexp(-4.0d0/T)
+      vprob(5)=0d0
+      vprob(6)=0d0
+      vprob(7)=0d0
+      vprob(8)=dexp(-8.0d0/T)
 
-      Open(13,File='grid.out')
-      Open(14,File='dades.out')
       
-      ivec=0
-      
-c     * do loops for matrix inicialization     
-      Do i=1,L
-        Do j=1,L
-          If ((rvec(ivec)).ge.0.5)Then
-            S(i,j) = 1
-          Else
-            S(i,j) = -1
-          EndIf
-          ivec=ivec+1
-c          Write(*,*) i,' ',j,' ', S(i,j)
-        EndDo
-        Write(13,*)( S(i,j) ,j=1,L)
-      EndDo
-c     cridem la funció Magne que calcula la magnetització de la xarxa
-      magin=Magne(S,L)
-      Write(*,*) "La magnetitzacció inicial és: ", magin
-c     cridem la funció Ener que calcula l'energia de la xarxa
-      enerin=Ener(S,L, PBC)
-      Write(*,*) "L'Enrgia inicial és:  ", enerin
-
       eners=0.0d0
       enerpas=0.0d0
       magnes=0.0d0
@@ -96,13 +80,55 @@ c     cridem la funció Ener que calcula l'energia de la xarxa
       sume2=0.0d0
       sumabsm=0.0d0
       suma0=0.0d0
+      
+                
+
+c     * Open file
+
+c      Open(13,File='grid.out')
+      Open(14,File='dades.out',position="append")
+        
+c     bucle de temperatures
+c      Do T=0,5.0d0,0.1d0
+c     bucle de llavors illav a nllav
+      Do illav=illav0,illav0+nllav,1
+c     * random numbers generation
+      
+        Call rcarin(illav,rvec,Nrand)
+
+c     generació de la matriu inicial
+        Call rcarry(rvec,Nrand)
+      
+      
+      ivec=0
+      
+c     * do loops for matrix generation    
+        Do i=1,L
+          Do j=1,L
+            If ((rvec(ivec)).ge.0.5)Then
+              S(i,j) = 1
+            Else
+              S(i,j) = -1
+            EndIf
+            ivec=ivec+1
+c          Write(*,*) i,' ',j,' ', S(i,j)
+          EndDo
+c          Write(13,*)( S(i,j) ,j=1,L)
+        EndDo
+c     cridem la funció Magne que calcula la magnetització de la xarxa
+c        magin=Magne(S,L)
+c        Write(*,*) "La magnetitzacció inicial és: ", magin
+c     cridem la funció Ener que calcula l'energia de la xarxa
+c        enerin=Ener(S,L, PBC)
+c        Write(*,*) "L'Enrgia inicial és:  ", enerin
+
 
 c     Do de Montecarlo
-      Do IMC=1,MCtotal
-         Call rcarry(rvec, Nrand)
-         ivec=0
+        Do IMC=1,MCtotal
+          Call rcarry(rvec, Nrand)
+          ivec=0
 c        Do N cops
-         Do ipas=1,N
+          Do ipas=1,N
             ! codi metropolis 3 nums aleatoris
             i=INT(L*rvec(ivec))+1
             ivec=ivec+1
@@ -117,33 +143,35 @@ c           Calculem delta H
 c           if per comprovar si l'increment energètic és negatiu
 c           o positiu
             If (enerdif.le.0.0d0) Then
-c              acceptem el canvi
+c              write(6,*)'acceptem el canvi'
                S(i,j)=-S(i,j)
 c               calcul energia
-               eners=Ener(S, L, PBC)
-               magnes=Magne(S, L)
+c               eners=Ener(S, L, PBC)
+c               magnes=Magne(S, L)
             Else
-c              solament acceptem el canvi si l'exponencial de -deltaH/T 
-c              és major que un nombre a l'atzar
-               C=rvec(ivec)
-               ivec=ivec+1
-               prob=Boltz(-enerdif, T)
+c             solament acceptem el canvi si l'exponencial de -deltaH/T 
+c             és major que un nombre a l'atzar
+c              write(*,*) enerdif
+              C=rvec(ivec)
+              ivec=ivec+1
+c              prob=Boltz(enerdif, T)
 c               Write(*,*) prob
-               If (C.le.prob) Then
-                  S(i,j)=-S(i,j)
-c                 calcul energia
-                  eners=Ener(S, L, PBC)
-                  magnes=Magne(S, L)
-               EndIf
+              If (C.le.vprob(enerdif)) Then
+c                             write(6,*)'acceptem el canvi'
+                S(i,j)=-S(i,j)
+c                calcul energia
+c                eners=Ener(S, L, PBC)
+c                magnes=Magne(S, L)
+              EndIf
             EndIf
-         EndDo
+          EndDo
 c        calcul dels promitjos(real*8) energia  imantacio sumam sume sumam2
 c        sume2 sumabsm per mc prou grans mcini=1000 i multiples de mcstep=10
 c        IF(mc.gt.mcini)AND(imc.eq.mcstep*(imc/imcstep)) 
 c        definim fora bucle montecarlo sum* on hi afegim Sum0 que
 c        compta el nombre de condicions complerrtes  de mcstep
 c        Write ene1 i ene2 ca
-         IF((IMC.gt.MCini).AND.((Mod(IMC,MCstep)).eq.0)) Then
+          IF((IMC.gt.MCini).AND.((Mod(IMC,MCstep)).eq.0)) Then
             enerpas = Ener(S, L, PBC)
             magnepas = Magne(S,L)
 c            Write(*,*) IMC, eners, enerpas
@@ -154,16 +182,28 @@ c            Write(*,*) IMC, magnes, magnepas
             sume2 = sume2 + (enerpas**2)
             sumabsm = sumabsm + Abs(magnepas)
             suma0 = suma0+1.0d0
-            Write(14,*) suma0, enerpas, sume, sume2,
-     +      magnepas, sumam, sumam2, sumabsm
-         EndIf
+c            Write(14,*) suma0, enerpas, sume, sume2,
+c     +      magnepas, sumam, sumam2, sumabsm
+          EndIf
+        EndDo
       EndDo
-
 c     normalitzem divindint els sumatoris per suma0 que compta
-c     la quantitat de passos ue em sumat
-
-      Close(13)
+c     la quantitat de passos que hem sumat
+      
+      sume=sume/suma0
+      sume2=sume2/suma0
+      sumam=+sumam/suma0
+      sumam2=sumam2/suma0
+      sumabsm=sumabsm/suma0
+      
+      Write(14,*) L, T, nllav, MCtotal, sume, sume2,
+     +       sumam, sumam2, sumabsm, suma0
+      
+c      Close(13)
       Close(14)
+      
+      Call cpu_time(finish)
+      print '("Time = ",f12.3," seconds.")',finish-start
 
       Stop
       End
@@ -232,7 +272,7 @@ c     ******************************************************************
 c
 
 
-      Real*8 Function DeltaEner(i, j, S,PBC)
+      Integer*4 Function DeltaEner(i, j, S,PBC)
       
       Integer*2 S(1:256,1:256)
       Integer*4 sumveins, PBC(0:257), i, j
@@ -261,7 +301,9 @@ c
       Real*8 Function Boltz(enerdif, T)
       
       Real*8 enerdif
+      Real*4 T
       
+  
       Boltz=dexp((-enerdif)/T)
       
       Return
