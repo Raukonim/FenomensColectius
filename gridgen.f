@@ -11,7 +11,7 @@ c     matrix [[rvec][rvec]....[rvec]] if rvec(i,j).ge.0.5 sij=1 else -1
 c
 c     * variable declarations ****************************************
 c
-      Implicit None
+      !Implicit None
       Real*8 Magne, Ener, Boltz               ! Declarem les funcions
       Real*8 magin, enerin, prob
       Real*8 eners, magnes, enerpas, magnepas
@@ -21,6 +21,8 @@ c
       Integer*4 illav, illav0, nllav, i ,j, N, L, sij, k
       Integer*4 IMC, MCtotal, MCini, MCstep, DeltaEner, enerdif
       Integer*4 Nrand, ivec, ipas, PBC(0:257), montec
+      Integer*4 num_args, ix
+      Character(Len=12) args(4)
       
       
       Integer*2 S(1:256,1:256)
@@ -31,10 +33,20 @@ c     * Dimensió rvec = 3*(256*256) + 24
       Call cpu_time(start)
  
 c     Variables que poden ser modificades per obtenir corbes més smooth
-      L=10
-      MCtotal=10000
-      T=1.0
-      nllav=30
+c     les llegim com arguments de la linia de comandes
+      !REAL(8)    :: A,B
+
+
+      num_args = command_argument_count()
+      !Allocate(args(num_args))  ! I've omitted checking the return status of the allocation 
+
+      Do ix = 1, 4
+        Call get_command_argument(ix,args(ix))
+      EndDo
+      read (args(1),*) L !10
+      read (args(2),*) MCtotal !10000
+      read (args(3),*) T !1.0d0
+      read (args(4),*) nllav !30
       
       MCini=1000
       MCstep=10
